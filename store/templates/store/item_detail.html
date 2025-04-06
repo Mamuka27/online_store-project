@@ -1,0 +1,82 @@
+{% extends 'store/base.html' %}
+
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row">
+    <!-- Product Image -->
+    <div class="col-md-6">
+      <img src="{{ item.image.url }}" class="img-fluid rounded shadow-sm" alt="{{ item.name }}">
+    </div>
+
+    <!-- Product Info -->
+    <div class="col-md-6">
+      <h1 class="display-5 fw-bold">{{ item.name }}</h1>
+      <p class="lead">{{ item.description }}</p>
+      <p class="price h4">
+        {% if item.discount_price %}
+          <del class="text-muted">${{ item.price }}</del>
+          <strong class="text-danger ms-2">${{ item.discount_price }}</strong>
+        {% else %}
+          ${{ item.price }}
+        {% endif %}
+      </p>
+
+      <!-- Wishlist / Cart Buttons -->
+      <div class="mt-3">
+        {% if user.is_authenticated %}
+          <form action="{% url 'add_to_cart' item.id %}" method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="number" name="quantity" value="1" min="1" class="form-control d-inline w-auto">
+            <button type="submit" class="btn btn-success">Add to Cart</button>
+          </form>
+          {% if is_in_wishlist %}
+            <a href="{% url 'remove_from_wishlist' item.id %}" class="btn btn-outline-danger">Remove from Wishlist</a>
+          {% else %}
+            <a href="{% url 'add_to_wishlist' item.id %}" class="btn btn-outline-primary">Add to Wishlist</a>
+          {% endif %}
+        {% else %}
+          <p><a href="{% url 'login' %}">Login</a> to add to cart or wishlist.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Reviews -->
+  <div class="mt-5">
+    <h2 class="fw-bold mb-4">Customer Reviews</h2>
+    {% for review in reviews %}
+      <div class="card mb-3 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title fw-semibold">{{ review.user.username }}</h5>
+          <div class="text-warning mb-2">
+            {% for star in "12345"|make_list %}
+              {% if forloop.counter <= review.rating %}
+                <i class="fas fa-star"></i>
+              {% else %}
+                <i class="far fa-star"></i>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <p class="card-text">{{ review.comment }}</p>
+          <small class="text-muted">{{ review.created_at|date:"F j, Y, g:i a" }}</small>
+        </div>
+      </div>
+    {% empty %}
+      <p>No reviews yet. Be the first to review!</p>
+    {% endfor %}
+  </div>
+
+  {% if user.is_authenticated %}
+    <div class="mt-4">
+      <h4>Leave a Review</h4>
+      <form method="post" action="{% url 'add_review' item.id %}">
+        {% csrf_token %}
+        {{ review_form.as_p }}
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
