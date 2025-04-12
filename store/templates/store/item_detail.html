@@ -1,45 +1,109 @@
 {% extends 'store/base.html' %}
 
 {% load static %}
+{% load humanize %}
 
 {% block content %}
 <div class="container mt-5">
   <div class="row">
     <!-- Product Image -->
     <div class="col-md-6">
-      <img src="{{ item.image.url }}" class="img-fluid rounded shadow-sm" alt="{{ item.name }}">
+      <img src="{{ item.image.url }}" class="img-fluid rounded shadow-sm" alt="{{ item.name }}" style="max-width: 60%; height: auto;">
     </div>
 
     <!-- Product Info -->
     <div class="col-md-6">
-      <h1 class="display-5 fw-bold">{{ item.name }}</h1>
+      <h1 class="display-5 fw-bold mb-3">{{ item.name }}</h1>
+
+      <!-- Category Badges -->
+      <p>
+        <span class="badge bg-secondary">{{ item.subcategory.category.name }}</span>
+        <span class="badge bg-info text-dark">{{ item.subcategory.name }}</span>
+        {% if item.brand %}<span class="badge bg-light border text-dark">Brand: {{ item.brand.name }}</span>{% endif %}
+      </p>
+
       <p class="lead">{{ item.description }}</p>
+
+      <!-- Price Section -->
       <p class="price h4">
-        {% if item.discount_price %}
-          <del class="text-muted">${{ item.price }}</del>
-          <strong class="text-danger ms-2">${{ item.discount_price }}</strong>
+        {% if item.discount_price and item.discount_expiry and item.discount_expiry > now %}
+          <del class="text-muted">₾{{ item.price }}</del>
+          <strong class="text-danger ms-2">₾{{ item.discount_price }}</strong>
+          <div class="text-muted small">Discount ends in {{ item.discount_expiry|naturaltime }}</div>
         {% else %}
-          ${{ item.price }}
+          ₾{{ item.price }}
         {% endif %}
       </p>
 
+      <!-- Stock Status and Sales -->
+      <p class="mt-2">
+        {% if item.stock > 0 %}
+          <span class="badge bg-success">In Stock</span>
+        {% else %}
+          <span class="badge bg-danger">Out of Stock</span>
+        {% endif %}
+        <span class="ms-2 text-muted small">{{ item.lifetime_sales|intcomma }} sold</span>
+      </p>
+
+      <!-- Ratings -->
+      {% if reviews %}
+        {% with total=0 count=0 %}
+          {% for review in reviews %}
+            {% with total=total|add:review.rating count=count|add:1 %}{% endwith %}
+          {% endfor %}
+          {% if count > 0 %}
+            <p class="text-warning">
+              ⭐ Average Rating: {{ total|floatformat:1 }}/5
+            </p>
+          {% endif %}
+        {% endwith %}
+      {% endif %}
+
       <!-- Wishlist / Cart Buttons -->
-      <div class="mt-3">
+      <div class="mt-4 d-flex gap-2 align-items-center">
         {% if user.is_authenticated %}
-          <form action="{% url 'add_to_cart' item.id %}" method="post" class="d-inline">
+          <form action="{% url 'add_to_cart' item.id %}" method="post" class="d-flex gap-2">
             {% csrf_token %}
-            <input type="number" name="quantity" value="1" min="1" class="form-control d-inline w-auto">
-            <button type="submit" class="btn btn-success">Add to Cart</button>
+            <input type="number" name="quantity" value="1" min="1" class="form-control form-control-sm w-25">
+            <button type="submit" class="btn btn-success"><i class="fas fa-cart-plus me-1"></i> Add to Cart</button>
           </form>
+
           {% if is_in_wishlist %}
-            <a href="{% url 'remove_from_wishlist' item.id %}" class="btn btn-outline-danger">Remove from Wishlist</a>
+            <form action="{% url 'remove_from_wishlist' item.id %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger" title="Remove from Wishlist">
+                <i class="fas fa-heart-broken"></i>
+              </button>
+            </form>
           {% else %}
-            <a href="{% url 'add_to_wishlist' item.id %}" class="btn btn-outline-primary">Add to Wishlist</a>
+            <form action="{% url 'add_to_wishlist' item.id %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-primary" title="Add to Wishlist">
+                <i class="far fa-heart"></i>
+              </button>
+            </form>
           {% endif %}
         {% else %}
           <p><a href="{% url 'login' %}">Login</a> to add to cart or wishlist.</p>
         {% endif %}
       </div>
+    </div>
+  </div>
+
+  <!-- Recently Viewed Section -->
+  <div class="mt-5">
+    <h4 class="fw-bold">Recently Viewed</h4>
+    <div class="d-flex gap-3 overflow-auto py-2">
+      {% for recent in recently_viewed_items %}
+        <div class="card shadow-sm" style="min-width: 180px;">
+          <img src="{{ recent.image.url }}" class="card-img-top" style="height: 120px; object-fit: cover;">
+          <div class="card-body p-2">
+            <h6 class="card-title small mb-1">{{ recent.name }}</h6>
+            <p class="text-muted mb-0 small">₾{{ recent.price }}</p>
+            <a href="{% url 'item_detail' recent.id %}" class="stretched-link"></a>
+          </div>
+        </div>
+      {% endfor %}
     </div>
   </div>
 
@@ -71,7 +135,7 @@
   {% if user.is_authenticated %}
     <div class="mt-4">
       <h4>Leave a Review</h4>
-      <form method="post" action="{% url 'add_review' item.id %}">
+      <form method="post" action="{% url 'add_review' item.id %}" class="mb-5">
         {% csrf_token %}
         {{ review_form.as_p }}
         <button type="submit" class="btn btn-primary">Submit</button>

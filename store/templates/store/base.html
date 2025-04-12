@@ -1,78 +1,76 @@
 {% load static %}
+{% block extra_js %}{% endblock %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Online Store{% endblock %}</title>
 
-  <!-- Bootstrap CSS -->
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="{% static 'store/style.css' %}">
-  {% block extra_css %}{% endblock %}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+  <link rel="stylesheet" href="{% static 'store/style.css' %}" />
+  <link rel="stylesheet" href="{% static 'user/css/style.css' %}" />
 
   <style>
-    body {
-      background-color: #f8f9fa;
+    .zoom-img {
+      transition: transform 0.3s ease;
     }
-    .navbar-brand {
-      font-weight: bold;
-      font-size: 1.4rem;
+    .zoom-img:hover {
+      transform: scale(1.1);
     }
-    .navbar-nav .nav-item .nav-link {
-      padding-left: 1rem;
-      padding-right: 1rem;
+    .card-img-top {
+      object-fit: contain;
+      height: 250px;
+      width: 100%;
     }
-    .nav-link i {
-      margin-right: 4px;
-    }
-    .welcome-msg {
-      font-weight: 600;
-    }
-    footer {
-      background-color: #212529;
-    }
-    .alert {
-      font-size: 0.95rem;
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
   </style>
-</head>
-<body>
 
-<header class="bg-white shadow-sm">
-  <nav class="navbar navbar-expand-lg navbar-light container py-2">
-    <a class="navbar-brand text-primary" href="{% url 'item_list' %}">Online Store</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ml-auto align-items-center">
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'cart_detail' %}">
-            <i class="fas fa-shopping-cart"></i> Cart
-          </a>
+  {% block extra_css %}{% endblock %}
+</head>
+
+{% block scripts %}{% endblock %}
+
+<body class="bg-gray-100">
+
+<header class="bg-white border-bottom shadow-sm">
+  <div class="w-100" style="height: 6px; background-color: #149ddd;"></div>
+  <nav class="navbar navbar-expand-lg navbar-light container d-flex justify-content-between align-items-center py-2">
+    <a class="navbar-brand text-primary font-weight-bold" href="{% url 'item_list' %}">Online Store</a>
+
+    <div class="d-flex align-items-center">
+      <ul class="navbar-nav flex-row align-items-center">
+        <li class="nav-item mx-2">
+          <a class="nav-link p-0" href="{% url 'cart_detail' %}"><i class="fas fa-shopping-cart"></i> Cart</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'wishlist' %}">
-            <i class="fas fa-heart"></i> Wishlist
-          </a>
+        <li class="nav-item mx-2">
+          <a class="nav-link p-0" href="{% url 'wishlist' %}"><i class="fas fa-heart text-danger"></i> Wishlist</a>
         </li>
+
         {% if user.is_authenticated %}
-          <li class="nav-item">
-            <span class="nav-link welcome-msg">Welcome, <strong>{{ user.username }}</strong></span>
+          <li class="nav-item mx-2">
+            <span class="nav-link p-0">
+              Welcome, <a href="{% url 'account_profile' %}" class="fw-bold text-decoration-none">{{ user.username }}</a>
+            </span>
           </li>
-          <li class="nav-item">
-            <form action="{% url 'logout' %}" method="post" class="mb-0">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-outline-danger btn-sm ml-2">Logout</button>
+          <li class="nav-item mx-2">
+            <form action="{% url 'logout' %}" method="post" class="d-inline">{% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
             </form>
           </li>
         {% else %}
-          <li class="nav-item">
-            <a class="nav-link btn btn-outline-primary btn-sm ml-2" href="{% url 'login' %}?next={{ request.path }}">Login</a>
+          <li class="nav-item mx-2">
+            <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">Login</a>
+          </li>
+          <li class="nav-item mx-2">
+            <a href="{% url 'register' %}" class="btn btn-outline-success btn-sm">Register</a>
           </li>
         {% endif %}
       </ul>
@@ -80,32 +78,41 @@
   </nav>
 </header>
 
-<main class="container my-4">
+<main class="container my-5">
   {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-    {% endfor %}
-  {% endif %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show fade-message d-flex align-items-center" role="alert">
+      {{ message }}
+      <button type="button" class="close ml-auto" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  {% endfor %}
+{% endif %}
+
 
   {% block content %}{% endblock %}
 </main>
 
-<footer class="text-white text-center py-4">
+<footer class="bg-dark text-white text-center py-4 mt-5">
   <div class="container">
     <p class="mb-0">&copy; 2025 Online Store. All rights reserved.</p>
   </div>
 </footer>
 
-<!-- Bootstrap JS & Dependencies -->
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-{% block extra_js %}{% endblock %}
+<script>
+  setTimeout(function () {
+    const alerts = document.querySelectorAll('.fade-message');
+    alerts.forEach(function (alert) {
+      $(alert).alert('close');
+    });
+  }, 3000);
+</script>
+
 
 </body>
 </html>

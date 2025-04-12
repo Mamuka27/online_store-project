@@ -1,34 +1,38 @@
-from django.contrib import admin
-from django.urls import path, include
-from store import views as store_views
-from django.contrib.auth.views import LogoutView
-
-
+from django.urls import path
+from django.views.generic import RedirectView
+from store.views import (
+    HomeView, ItemListView, ItemDetailView,
+    AddToCartView, CartDetailView, UpdateCartView, RemoveFromCartView,
+    AddReviewView, AddToWishlistView, RemoveFromWishlistView, WishlistView,
+    CartPaymentView, CompletePaymentView, UnsuccessfulPaymentView,
+    DeleteCardView, account_profile
+)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', store_views.item_list, name='item_list'),
-    path('item/<int:item_id>/', store_views.item_detail, name='item_detail'),
-    path('add-to-cart/<int:item_id>/', store_views.add_to_cart, name='add_to_cart'),
-    path('cart/', store_views.cart_detail, name='cart_detail'),
-    path('update-cart/<int:item_id>/', store_views.update_cart, name='update_cart'),
-    path('remove-from-cart/<int:item_id>/', store_views.remove_from_cart, name='remove_from_cart'),
-    path('add-review/<int:item_id>/', store_views.add_review, name='add_review'),
-    path('add-to-wishlist/<int:item_id>/', store_views.add_to_wishlist, name='add_to_wishlist'),
-    path('remove-from-wishlist/<int:item_id>/', store_views.remove_from_wishlist, name='remove_from_wishlist'),
-    path('wishlist/', store_views.wishlist, name='wishlist'),
-    path('register/', store_views.RegistrationView.as_view(), name='register'),
-    path('logout/', LogoutView.as_view(next_page='/'), name='logout'),
+    # Home & Account
+    path('', ItemListView.as_view(), name='item_list'),
+    path('home/', HomeView.as_view(), name='home'),
+    path('account/', account_profile, name='account_profile'),
+    path("account/delete_card/<int:card_id>/", DeleteCardView.as_view(), name="delete_card"),
 
+    # Item & Reviews
+    path('item/<int:pk>/', ItemDetailView.as_view(), name='item_detail'),
+    path('item/<int:item_id>/review/', AddReviewView.as_view(), name='add_review'),
 
+    # Cart
+    path('cart/', CartDetailView.as_view(), name='cart_detail'),
+    path('cart/add/<int:item_id>/', AddToCartView.as_view(), name='add_to_cart'),
+    path('cart/update/<int:item_id>/', UpdateCartView.as_view(), name='update_cart'),
+    path('cart/remove/<int:item_id>/', RemoveFromCartView.as_view(), name='remove_from_cart'),
+    path('cart/payment/', CartPaymentView.as_view(), name='cart_payment'),
+    path('cart/complete/', CompletePaymentView.as_view(), name='complete_payment'),
+    path('cart/unsuccessful/', UnsuccessfulPaymentView.as_view(), name='unsuccessful_payment'),
 
-    # ✅ This enables login/logout/password views
-    path('accounts/', include('django.contrib.auth.urls')),
-]
+    # Wishlist
+    path('wishlist/', WishlistView.as_view(), name='wishlist'),
+    path('wishlist/add/<int:item_id>/', AddToWishlistView.as_view(), name='add_to_wishlist'),
+    path('wishlist/remove/<int:item_id>/', RemoveFromWishlistView.as_view(), name='remove_from_wishlist'),
 
-
-from django.views.generic import RedirectView
-
-urlpatterns += [
+    # Auth Redirect
     path('login/', RedirectView.as_view(url='/accounts/login/')),
 ]

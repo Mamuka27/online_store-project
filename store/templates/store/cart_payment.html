@@ -1,0 +1,22 @@
+{% extends "store/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Payment Summary</h2>
+  <ul class="list-group">
+    {% for cart_item in cart_items %}
+      <li class="list-group-item d-flex justify-content-between">
+        <strong>{{ cart_item.item.name }}</strong>
+        <span>{{ cart_item.quantity }} × ${{ cart_item.item.discount_price|default:cart_item.item.price }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+  <div class="text-right mt-4">
+    <h4>Total: ${{ total_price }}</h4>
+    <form method="post" action="{% url 'complete_payment' %}">
+      {% csrf_token %}
+      <button class="btn btn-success btn-lg">Complete Payment</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

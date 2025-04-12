@@ -1,0 +1,12 @@
+input, button {
+    border-radius: 0.375rem; /* Tailwind's rounded-md */
+}
+
+.btn-primary {
+    background-color: #4f46e5; /* Tailwind Indigo-600 */
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #4338ca; /* Tailwind Indigo-700 */
+}

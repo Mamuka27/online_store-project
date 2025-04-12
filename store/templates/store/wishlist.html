@@ -8,29 +8,79 @@
   <div class="row">
     {% for wish in wishlist_items %}
       <div class="col-md-4">
-        <div class="card mb-4 shadow-sm">
-          {% if wish.item.image %}
-            <img src="{{ wish.item.image.url }}" class="card-img-top" alt="{{ wish.item.name }}">
-          {% else %}
-            <img src="{% static 'store/default_item.png' %}" class="card-img-top" alt="{{ wish.item.name }}">
-          {% endif %}
-          <div class="card-body">
-            <h5 class="card-title">{{ wish.item.name }}</h5>
-            <p class="card-text">Rating: {{ wish.item.average_rating }} / 5</p>
-            <p class="card-text">Price: ${{ wish.item.price }}</p>
-            <p class="card-text">Reviews: {{ wish.item.reviews.count }}</p>
+        <div class="card wishlist-card shadow-sm mb-4 h-100 position-relative">
 
-            <div class="d-flex justify-content-between align-items-center mt-3">
-              <form action="{% url 'add_to_cart' wish.item.id %}" method="post">
-                {% csrf_token %}
-                <input type="hidden" name="quantity" value="1">
-                <button type="submit" class="btn btn-success">Add to Cart</button>
-              </form>
-              <form action="{% url 'remove_from_wishlist' wish.item.id %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger">Remove</button>
-              </form>
-            </div>
+          <!-- Ribbons -->
+          {% if wish.item.discount_price and wish.item.discount_expiry and wish.item.discount_expiry > now %}
+            <span class="badge badge-danger position-absolute" style="top:10px;right:10px;">-{{ wish.item.discount_percent }}%</span>
+            <span class="badge badge-warning position-absolute" style="top:10px;left:-15px;transform:rotate(-45deg);">Limited Time!</span>
+          {% endif %}
+          {% if wish.item.is_featured %}
+            <span class="badge badge-info position-absolute" style="top:45px;right:10px;">Best Seller</span>
+          {% endif %}
+          {% if wish.item.created_at|date:"U" >= now|date:"U"|add:"-604800" %}
+            <span class="badge badge-success position-absolute" style="top:75px;right:10px;">New</span>
+          {% endif %}
+
+          <!-- Image -->
+          {% if wish.item.image %}
+            <img src="{{ wish.item.image.url }}" class="card-img-top" style="height: 220px; object-fit: contain;" alt="{{ wish.item.name }}">
+          {% else %}
+            <img src="{% static 'store/images/default.jpg' %}" class="card-img-top" style="height: 220px; object-fit: contain;" alt="No image">
+          {% endif %}
+
+          <!-- Body -->
+          <div class="card-body">
+            <h5 class="card-title font-weight-bold">{{ wish.item.name }}</h5>
+
+            <!-- Price -->
+            {% if wish.item.discount_price and wish.item.discount_expiry and wish.item.discount_expiry > now %}
+              <p class="mb-1">
+                <span class="text-danger font-weight-bold" style="font-size: 1.1rem;">
+                  <del>${{ wish.item.price }}</del>
+                </span>
+                <span class="text-success font-weight-bold ml-2" style="font-size: 1.2rem;">
+                  ${{ wish.item.discount_price }}
+                </span>
+              </p>
+              <small class="text-muted d-block">
+                <i class="far fa-clock"></i> Ends in:
+                <span class="text-danger countdown" data-expiry="{{ wish.item.discount_expiry.isoformat }}"></span>
+              </small>
+            {% else %}
+              <p class="mb-1 font-weight-bold">${{ wish.item.price }}</p>
+            {% endif %}
+
+            <p class="text-muted mb-1">{{ wish.item.subcategory.category.name }} > {{ wish.item.subcategory.name }}</p>
+
+            <!-- Rating -->
+            <p class="mb-1">
+              {% for i in "12345" %}
+                <i class="fas fa-star{% if forloop.counter > wish.item.average_rating %}-o{% endif %} text-warning"></i>
+              {% endfor %}
+            </p>
+
+            <!-- Stock -->
+            <p>
+              {% if wish.item.stock > 0 %}
+                <span class="badge badge-success">In Stock</span>
+              {% else %}
+                <span class="badge badge-danger">Out of Stock</span>
+              {% endif %}
+            </p>
+          </div>
+
+          <!-- Buttons -->
+          <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
+            <form action="{% url 'add_to_cart' wish.item.id %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="quantity" value="1">
+              <button type="submit" class="btn btn-success btn-sm">Add to Cart</button>
+            </form>
+            <form action="{% url 'remove_from_wishlist' wish.item.id %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+            </form>
           </div>
         </div>
       </div>
@@ -39,4 +89,26 @@
 {% else %}
   <p class="text-center">Your wishlist is empty.</p>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function updateCountdowns() {
+    const now = new Date().getTime();
+    document.querySelectorAll('.countdown').forEach(span => {
+      const expiry = new Date(span.dataset.expiry).getTime();
+      const diff = expiry - now;
+      if (diff > 0) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        span.textContent = `${days}d ${hours}h ${minutes}m`;
+      } else {
+        span.textContent = "Expired";
+      }
+    });
+  }
+  setInterval(updateCountdowns, 60000);
+  updateCountdowns();
+</script>
 {% endblock %}

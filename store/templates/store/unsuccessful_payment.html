@@ -1,0 +1,8 @@
+{% extends "store/base.html" %}
+{% block content %}
+<div class="text-center mt-5">
+  <h1 class="text-danger"><i class="fas fa-times-circle"></i> Payment Failed</h1>
+  <p class="lead mt-3">Your payment could not be processed. Please check your card details and try again.</p>
+  <a href="{% url 'cart_payment' %}" class="btn btn-danger mt-3">Try Again</a>
+</div>
+{% endblock %}
