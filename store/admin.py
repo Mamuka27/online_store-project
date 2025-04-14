@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Category, SubCategory, Brand, Item, Review, CartItem, WishlistItem
+from .models import (
+    Category, SubCategory, Brand, Item, Review,
+    CartItem, WishlistItem, ItemImage, PriceHistory
+)
 
 
 @admin.register(Category)
@@ -23,11 +26,26 @@ class BrandAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
+class ItemImageInline(admin.TabularInline):
+    model = ItemImage
+    extra = 1
+    fields = ['image', 'alt_text']
+    max_num = 10
+
+
+class PriceHistoryInline(admin.TabularInline):
+    model = PriceHistory
+    extra = 0
+    readonly_fields = ('price', 'date')
+
+
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     list_display = ['name', 'subcategory', 'get_category', 'brand', 'price', 'stock', 'is_available']
     list_filter = ['is_available', 'brand', 'subcategory']
     search_fields = ['name', 'subcategory__name', 'brand__name']
+    prepopulated_fields = {'slug': ('name',)} 
+    inlines = [ItemImageInline, PriceHistoryInline]
 
     def get_category(self, obj):
         return obj.subcategory.category.name

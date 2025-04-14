@@ -4,16 +4,15 @@ from . import views
 from .views import EditProfileView
 
 urlpatterns = [
-    # Register (custom view)
+
     path('register/', views.register_view, name='register'),
     path('edit/', EditProfileView.as_view(), name='edit_profile'),
-    # Login / Logout (Django's built-in views)
+
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', views.custom_logout, name='logout'),
-    # Optional: User profile (custom view)
+
     path('profile/', views.profile, name='profile'),
 
-    # Password reset workflow
     path('reset-password/', auth_views.PasswordResetView.as_view(
         template_name='registration/password_reset_form.html'
     ), name='password_reset'),

@@ -55,6 +55,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'store.middleware.redirect_unauthenticated.RedirectUnauthenticatedMiddleware',  # ← add this
+
+    'store.middleware.redirect_unauthenticated.RedirectUnauthenticatedMiddleware',
+
+
 ]
 
 ROOT_URLCONF = 'mysite.urls'
@@ -155,8 +160,7 @@ EMAIL_HOST_USER = 'mamukagobejishvil200827@gmail.com'
 EMAIL_HOST_PASSWORD = 'nscz dmgw aath mglv'
 
 
-
-LOGIN_URL = '/login/'
+LOGIN_URL = reverse_lazy('register')
 LOGIN_REDIRECT_URL = '/'
 LOGIN_REDIRECT_URL = '/'
 from django.urls import reverse_lazy

@@ -11,6 +11,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+import random, string
 def generate_slug(instance, value, prefix):
 
     generated = slugify(value)
@@ -75,66 +76,22 @@ class Brand(models.Model):
         super(Brand, self).save(*args, **kwargs)
 
 
-
-
-
-class PhoneInformation(models.Model):
-    color = models.CharField(max_length=100)
-    brand = models.CharField(max_length=100)
-    release_date = models.DateField()
-
-    sim_type = models.CharField(max_length=50)
-    esim = models.BooleanField()
-    supports_5g = models.BooleanField()
-    body_material = models.CharField(max_length=255)
-    ip_rating = models.CharField(max_length=20)
-
-    chipset = models.CharField(max_length=100)
-    gpu = models.CharField(max_length=100)
-    os = models.CharField(max_length=100)
-    os_version = models.CharField(max_length=100)
-    stereo_speakers = models.BooleanField()
-    bluetooth_version = models.CharField(max_length=10)
-    nfc = models.BooleanField()
-
-    display_size = models.CharField(max_length=100)
-    resolution = models.CharField(max_length=100)
-    refresh_rate = models.CharField(max_length=50)
-    brightness = models.CharField(max_length=50)
-    display_type = models.CharField(max_length=100)
-    screen_protection = models.CharField(max_length=100)
-
-    internal_storage = models.CharField(max_length=50)
-    storage_type = models.CharField(max_length=50)
-    ram = models.CharField(max_length=50)
-    microsd_slot = models.BooleanField()
-
-    main_camera = models.TextField()
-    additional_cameras = models.TextField()
-    front_camera = models.TextField()
-    main_video_resolution = models.CharField(max_length=100)
-    front_video_resolution = models.CharField(max_length=100)
-
-    headphone_jack = models.CharField(max_length=10)
-    charging_port = models.CharField(max_length=50)
-
-    battery_capacity = models.CharField(max_length=50)
-    battery_type = models.CharField(max_length=50)
-    wireless_charging = models.BooleanField()
-    wireless_power = models.CharField(max_length=50)
-
-    weight = models.CharField(max_length=50)
+class ItemImage(models.Model):
+    item = models.ForeignKey('Item', related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='item_images/')
+    alt_text = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.brand} - {self.color}"
-    
+        return f"Image for {self.item.name}"
+
+
 class Item(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True)
     image = models.ImageField(upload_to='items/', blank=True, null=True)
     description = models.TextField()
-    subcategory = models.ForeignKey(SubCategory, on_delete=models.CASCADE, related_name='items')
-    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='items')
+    subcategory = models.ForeignKey('SubCategory', on_delete=models.CASCADE, related_name='items')
+    brand = models.ForeignKey('Brand', on_delete=models.CASCADE, related_name='items')
     price = models.DecimalField(max_digits=8, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     discount_expiry = models.DateTimeField(null=True, blank=True)
@@ -145,34 +102,73 @@ class Item(models.Model):
     lifetime_sales = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    phone_info = models.OneToOneField(PhoneInformation, null=True, blank=True, on_delete=models.SET_NULL)
 
+    # Specs
+    model_name = models.CharField(max_length=100, blank=True, null=True)
+    release_year = models.PositiveIntegerField(blank=True, null=True)
+    screen_size = models.DecimalField(max_digits=5, decimal_places=1, blank=True, null=True, help_text="In inches")
+    resolution = models.CharField(max_length=50, blank=True, null=True)
+    ram = models.PositiveIntegerField(blank=True, null=True, help_text="In GB")
+    storage = models.PositiveIntegerField(blank=True, null=True, help_text="In GB")
+    operating_system = models.CharField(max_length=100, blank=True, null=True)
+    battery_capacity = models.PositiveIntegerField(blank=True, null=True, help_text="In mAh")
+    fast_charging = models.BooleanField(default=False)
+    hdmi_support = models.BooleanField(default=False)
+    bluetooth = models.BooleanField(default=False)
+    wifi = models.BooleanField(default=False)
+    sim_support = models.BooleanField(default=False)
+    touchscreen = models.BooleanField(default=False)
+    views = models.PositiveIntegerField(default=0)
 
-    def current_price(self):
-
-        if self.discount_price and self.discount_expiry and self.discount_expiry > timezone.now():
-            return self.discount_price
-        return self.price
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
         return self.name
 
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = generate_slug(self, self.name, "item")
-        super(Item, self).save(*args, **kwargs)
-
-    def update_average_rating(self):
-        avg = self.reviews.aggregate(average=Avg('rating'))['average']
-        self.average_rating = avg if avg else 0.0
-        self.save(update_fields=['average_rating'])
+    def current_price(self):
+        if self.discount_price and self.discount_expiry and self.discount_expiry > timezone.now():
+            return self.discount_price
+        return self.price
 
     @property
     def category(self):
         return self.subcategory.category
 
+    def update_average_rating(self):
+        avg = self.reviews.aggregate(average=models.Avg('rating'))['average']
+        self.average_rating = avg if avg else 0.0
+        self.save(update_fields=['average_rating'])
+
+    def save(self, *args, **kwargs):
+        from .models import PriceHistory  # ✅ avoid circular import if needed
+        if not self.slug:
+            self.slug = generate_slug(self, self.name, "item")
+
+        # Save price change history
+        if self.pk:
+            old = Item.objects.get(pk=self.pk)
+            price_changed = old.price != self.price
+            discount_changed = old.discount_price != self.discount_price
+            if price_changed or discount_changed:
+                PriceHistory.objects.create(
+                    item=self,
+                    price=self.price,
+                    discount_price=self.discount_price
+                )
+
+        super().save(*args, **kwargs)
+
+
+
+class PriceHistory(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='price_history')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    date = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"{self.item.name} - ₾{self.price} on {self.date.strftime('%Y-%m-%d')}"
 
 class Review(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='reviews')
@@ -255,15 +251,16 @@ class WishlistItem(models.Model):
 
 
 
-
-
-
-
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, default="Completed")
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.user.username}"
+
+    
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)

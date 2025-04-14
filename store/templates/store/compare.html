@@ -1,0 +1,88 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+  <h2 class="text-center mb-4">Compare Items</h2>
+
+  {% if items %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover text-center">
+        <thead class="thead-dark">
+          <tr>
+            <th>Image</th>
+            {% for item in items %}
+              <th>{{ item.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Price</td>
+            {% for item in items %}
+              <td>
+                {% if item.discount_price and item.discount_expiry and item.discount_expiry > now %}
+                  <strong class="text-danger">₾{{ item.discount_price }}</strong><br>
+                  <del class="text-muted">₾{{ item.price }}</del>
+                {% else %}
+                  ₾{{ item.price }}
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td>Stock</td>
+            {% for item in items %}
+              <td>
+                {% if item.stock > 0 %}
+                  <span class="badge badge-success">In Stock</span>
+                {% else %}
+                  <span class="badge badge-danger">Out of Stock</span>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td>Category</td>
+            {% for item in items %}
+              <td>{{ item.subcategory.category.name }} > {{ item.subcategory.name }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td>Rating</td>
+            {% for item in items %}
+              <td>
+                {{ item.avg_rating|floatformat:1 }} / 5
+                <div>
+                  {% for i in "12345" %}
+                    <i class="fas fa-star{% if forloop.counter > item.avg_rating %}-o{% endif %} text-warning"></i>
+                  {% endfor %}
+                </div>
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td>Description</td>
+            {% for item in items %}
+              <td>{{ item.description|truncatechars:120 }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td>Actions</td>
+            {% for item in items %}
+              <td>
+                <form method="post" action="{% url 'remove_from_compare' item.id %}">
+                  {% csrf_token %}
+                  <button class="btn btn-danger btn-sm mb-2">Remove</button>
+                </form>
+                <a href="{% url 'item_detail' item.id %}" class="btn btn-outline-primary btn-sm">View</a>
+              </td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted text-center">You have not added any items to compare.</p>
+  {% endif %}
+</div>
+{% endblock %}

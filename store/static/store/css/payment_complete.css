@@ -1,0 +1,28 @@
+body {
+    background: #f5f7fa;
+  }
+  
+  .success-container {
+    max-width: 500px;
+    margin: 80px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+  
+  .success-icon {
+    font-size: 4rem;
+    color: #28a745;
+  }
+  
+  .btn-home {
+    background-color: #007bff;
+    border: none;
+  }
+  
+  .btn-home:hover {
+    background-color: #0056b3;
+  }
+  

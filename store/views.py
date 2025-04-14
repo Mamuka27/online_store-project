@@ -1,8 +1,16 @@
+import os
+import random
+import string
+from datetime import datetime
+
+from fpdf import FPDF
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Avg
+from django.db.models import Avg, Case, When, F, DecimalField, Count
+from django.http import FileResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -11,9 +19,13 @@ from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, TemplateView
 
 from .forms import ReviewForm
-from .models import Item, WishlistItem, Category, SubCategory, Brand, CartItem, Review, SavedCard
-from store.models import CartItem, Order, OrderItem, Item
-from datetime import datetime
+from .models import (
+    Item, WishlistItem, Category, SubCategory,
+    Brand, CartItem, Review, SavedCard,
+    Order, OrderItem
+)
+from .pdf_utils import ReceiptGenerator
+
 
 def get_card_type(card_number):
     if card_number.startswith("4"):
@@ -26,9 +38,11 @@ def get_card_type(card_number):
         return "discover"
     return "default"
 
+
 class HomeView(View):
     def get(self, request):
         return render(request, 'store/home.html')
+
 
 class ItemListView(ListView):
     model = Item
@@ -39,12 +53,14 @@ class ItemListView(ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         now = timezone.now()
+
         category = self.request.GET.get("category")
         subcategory = self.request.GET.get("subcategory")
         brand = self.request.GET.get("brand")
         rating = self.request.GET.get("rating")
         search_query = self.request.GET.get("search")
         special = self.request.GET.get("special")
+        sort_option = self.request.GET.get("sort_by")
 
         if category:
             queryset = queryset.filter(subcategory__category_id=category)
@@ -70,6 +86,36 @@ class ItemListView(ListView):
         if special == "wishlist" and self.request.user.is_authenticated:
             wishlist_ids = WishlistItem.objects.filter(user=self.request.user).values_list("item_id", flat=True)
             queryset = queryset.filter(id__in=wishlist_ids)
+
+        queryset = queryset.annotate(
+            effective_price=Case(
+                When(discount_price__isnull=False, discount_expiry__gt=now, then=F('discount_price')),
+                default=F('price'),
+                output_field=DecimalField()
+            )
+        )
+
+        if sort_option == 'price_asc':
+            queryset = queryset.order_by('effective_price')
+        elif sort_option == 'price_desc':
+            queryset = queryset.order_by('-effective_price')
+        elif sort_option == 'name_asc':
+            queryset = queryset.order_by('name')
+        elif sort_option == 'name_desc':
+            queryset = queryset.order_by('-name')
+        elif sort_option == 'created_at_desc':
+            queryset = queryset.order_by('-created_at')
+        elif sort_option == 'created_at_asc':
+            queryset = queryset.order_by('created_at')
+        elif sort_option == 'rating_desc':
+            queryset = queryset.annotate(avg_rating=Avg('reviews__rating')).order_by('-avg_rating')
+        elif sort_option == 'sale_ending_soon':
+            queryset = queryset.filter(discount_expiry__gte=now).order_by('discount_expiry')
+        elif sort_option == 'stock_first':
+            queryset = queryset.order_by('-stock')
+        elif sort_option == 'stock_last':
+            queryset = queryset.order_by('stock')
+
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -84,6 +130,7 @@ class ItemListView(ListView):
             "rating": self.request.GET.get("rating", ""),
             "search_query": self.request.GET.get("search", ""),
             "selected_special": self.request.GET.get("special", ""),
+            "selected_sort": self.request.GET.get("sort_by", ""),
             "now": timezone.now(),
         })
         if self.request.user.is_authenticated:
@@ -92,23 +139,52 @@ class ItemListView(ListView):
             context["wishlist_ids"] = []
         return context
 
+
 class ItemDetailView(DetailView):
     model = Item
     template_name = 'store/item_detail.html'
-    context_object_name = 'item'
+
+    def get_object(self, queryset=None):
+        item = super().get_object(queryset)
+        item.views += 1
+        item.save(update_fields=["views"])
+        return item
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         item = self.get_object()
-        context['reviews'] = item.reviews.all()
+        history = item.price_history.order_by('date')
+
+        context['price_labels'] = [h.date.strftime('%Y-%m-%d') for h in history]
+        context['price_values'] = [float(h.price) for h in history]
+        context['discount_values'] = [float(h.discount_price) if h.discount_price else None for h in history]
+        context["now"] = now()
+
+        similar_items = Item.objects.filter(subcategory=item.subcategory).exclude(id=item.id).annotate(
+            wishlist_count=Count("wishlist_items")
+        ).order_by('-wishlist_count')[:3]
+
+        top_viewed = Item.objects.exclude(id=item.id).order_by('-views')[:3]
+        recommended = list(set(list(similar_items) + list(top_viewed)))[:4]
+        context["recommended_items"] = recommended
+
+        reviews = item.reviews.all()
+        context['reviews'] = reviews
+        if reviews.exists():
+            total = sum([r.rating for r in reviews])
+            context['average_rating'] = round(total / reviews.count(), 1)
+        else:
+            context['average_rating'] = None
+
         context['review_form'] = ReviewForm()
-        context['is_in_wishlist'] = self.request.user.is_authenticated and WishlistItem.objects.filter(user=self.request.user, item=item).exists()
         return context
+
 
 class WishlistView(LoginRequiredMixin, View):
     def get(self, request):
         wishlist_items = WishlistItem.objects.filter(user=request.user).select_related('item')
         return render(request, 'store/wishlist.html', {'wishlist_items': wishlist_items, 'now': now()})
+
 
 class AddToWishlistView(LoginRequiredMixin, View):
     def post(self, request, item_id):
@@ -116,11 +192,13 @@ class AddToWishlistView(LoginRequiredMixin, View):
         WishlistItem.objects.get_or_create(user=request.user, item=item)
         return redirect(request.META.get('HTTP_REFERER', 'item_list'))
 
+
 class RemoveFromWishlistView(LoginRequiredMixin, View):
     def post(self, request, item_id):
         item = get_object_or_404(Item, id=item_id)
         WishlistItem.objects.filter(user=request.user, item=item).delete()
         return redirect(request.META.get('HTTP_REFERER', 'item_list'))
+
 
 class AddToCartView(LoginRequiredMixin, View):
     def post(self, request, item_id):
@@ -140,20 +218,22 @@ class AddToCartView(LoginRequiredMixin, View):
 
         cart_item.quantity = total_qty
         cart_item.save()
-
         return redirect(request.META.get("HTTP_REFERER", "/"))
+
 
 class CartDetailView(LoginRequiredMixin, View):
     def get(self, request):
         cart_items = CartItem.objects.filter(user=request.user)
-        valid_cart_items = []
-        total_price = 0
+        valid_cart_items, total_price = [], 0
 
         for cart_item in cart_items:
             item = cart_item.item
             if item:
-                price = item.discount_price if item.discount_price and item.discount_expiry and item.discount_expiry > now() else item.price
-                total_price += price * cart_item.quantity
+                unit_price = item.discount_price if item.discount_price and item.discount_expiry and item.discount_expiry > now() else item.price
+                subtotal = unit_price * cart_item.quantity
+                total_price += subtotal
+                cart_item.unit_price = unit_price
+                cart_item.subtotal = subtotal
                 valid_cart_items.append(cart_item)
             else:
                 cart_item.delete()
@@ -163,6 +243,7 @@ class CartDetailView(LoginRequiredMixin, View):
             "total_price": total_price,
             "now": now(),
         })
+
 
 class UpdateCartView(LoginRequiredMixin, View):
     def post(self, request, item_id):
@@ -179,11 +260,13 @@ class UpdateCartView(LoginRequiredMixin, View):
             pass
         return redirect('cart_detail')
 
+
 class RemoveFromCartView(LoginRequiredMixin, View):
     def post(self, request, item_id):
         item = get_object_or_404(Item, id=item_id)
         CartItem.objects.filter(user=request.user, item=item).delete()
         return redirect('cart_detail')
+
 
 class CartPaymentView(LoginRequiredMixin, View):
     def get(self, request):
@@ -214,19 +297,9 @@ class CartPaymentView(LoginRequiredMixin, View):
                 )
 
         if card and not self.is_valid_expiry(card.expiry_date):
-            messages.error(request, "\u274c This card has expired.")
+            messages.error(request, "❌ This card has expired.")
             return redirect("unsuccessful_payment")
 
-        cart_items = CartItem.objects.filter(user=request.user)
-        for cart_item in cart_items:
-            item = cart_item.item
-            if item.stock >= cart_item.quantity:
-                item.stock -= cart_item.quantity
-                item.lifetime_sales += cart_item.quantity
-                item.save()
-            cart_item.delete()
-
-        messages.success(request, "\u2705 Payment completed.")
         return redirect("complete_payment")
 
     def is_valid_expiry(self, expiry):
@@ -236,6 +309,77 @@ class CartPaymentView(LoginRequiredMixin, View):
             return (2000 + year) > now_date.year or ((2000 + year) == now_date.year and month >= now_date.month)
         except:
             return False
+
+
+class AddReviewView(LoginRequiredMixin, View):
+    def post(self, request, item_id):
+        item = get_object_or_404(Item, id=item_id)
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.user = request.user
+            review.item = item
+            review.verified_purchase = CartItem.objects.filter(user=request.user, item=item).exists()
+            review.save()
+            messages.success(request, "Your review has been submitted.")
+        else:
+            messages.error(request, "There was an error with your review.")
+        return redirect('item_detail', pk=item.id)
+
+
+class RegistrationView(CreateView):
+    form_class = UserCreationForm
+    template_name = 'store/register.html'
+    success_url = reverse_lazy('login')
+
+
+
+class AccountProfileView(LoginRequiredMixin, TemplateView):
+    template_name = 'user/account.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        user = self.request.user
+
+        recent_orders = Order.objects.filter(user=user).order_by('-created_at')[:5]
+        for order in recent_orders:
+            order.order_items = OrderItem.objects.filter(order=order)
+
+        wishlist_items = WishlistItem.objects.filter(user=user).select_related('item')
+        cards = SavedCard.objects.filter(user=user)
+        saved_cards = [{"card": card, "type": get_card_type(card.card_number)} for card in cards]
+
+        context.update({
+            'user': user,
+            'recent_orders': recent_orders,
+            'wishlist_items': [w.item for w in wishlist_items],
+            'saved_cards': saved_cards,
+        })
+        return context
+    
+    
+
+class DeleteCardView(LoginRequiredMixin, View):
+    def post(self, request, card_id):
+        card = get_object_or_404(SavedCard, id=card_id, user=request.user)
+        card.delete()
+        messages.success(request, "Card deleted.")
+        return redirect("account_profile")
+
+
+class UnsuccessfulPaymentView(LoginRequiredMixin, TemplateView):
+    template_name = "store/unsuccessful_payment.html"
+
+
+class DownloadReceiptView(LoginRequiredMixin, View):
+    def get(self, request, code):
+        file_path = f"media/receipts/receipt_{code}.pdf"
+        if os.path.exists(file_path):
+            return FileResponse(open(file_path, 'rb'), content_type='application/pdf')
+        messages.error(request, "Receipt not found.")
+        return redirect("account_profile")
+
 
 class CompletePaymentView(LoginRequiredMixin, TemplateView):
     template_name = "store/payment_complete.html"
@@ -252,7 +396,6 @@ class CompletePaymentView(LoginRequiredMixin, TemplateView):
         for cart_item in cart_items:
             item = cart_item.item
             quantity = cart_item.quantity
-
             if item.stock >= quantity:
                 item.stock -= quantity
                 item.lifetime_sales += quantity
@@ -271,53 +414,35 @@ class CompletePaymentView(LoginRequiredMixin, TemplateView):
         order.total_amount = total
         order.save()
 
+        receipt_generator = ReceiptGenerator(order)
+        receipt_generator.generate()
+
         cart_items.delete()
-        messages.success(request, "\u2705 Payment completed and items purchased.")
-        return super().get(request, *args, **kwargs)
 
-class AddReviewView(LoginRequiredMixin, View):
-    def post(self, request, item_id):
-        item = get_object_or_404(Item, id=item_id)
-        form = ReviewForm(request.POST)
-        if form.is_valid():
-            review = form.save(commit=False)
-            review.user = request.user
-            review.item = item
-            review.verified_purchase = CartItem.objects.filter(user=request.user, item=item).exists()
-            review.save()
-            messages.success(request, "Your review has been submitted.")
-        else:
-            messages.error(request, "There was an error with your review.")
-        return redirect('item_detail', pk=item.id)
+        return render(request, self.template_name, {
+            "order": order,
+            "pdf_url": f"/download_receipt/{receipt_generator.code}/"
+        })
 
-class RegistrationView(CreateView):
-    form_class = UserCreationForm
-    template_name = 'store/register.html'
-    success_url = reverse_lazy('login')
 
-@login_required
-def account_profile(request):
-    recent_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
-    for order in recent_orders:
-        order.order_items = OrderItem.objects.filter(order=order)
+class CheckReceiptView(LoginRequiredMixin, View):
+    def get(self, request):
+        return render(request, "store/check_receipt.html")
 
-    wishlist_items = WishlistItem.objects.filter(user=request.user).select_related('item')
-    cards = SavedCard.objects.filter(user=request.user)
-    saved_cards = [{"card": card, "type": get_card_type(card.card_number)} for card in cards]
+    def post(self, request):
+        code = request.POST.get("receipt_code", "").strip().upper()
+        pdf_path = f"media/receipts/receipt_{code}.pdf"
 
-    return render(request, 'user/account.html', {
-        'user': request.user,
-        'recent_orders': recent_orders,
-        'wishlist_items': [w.item for w in wishlist_items],
-        'saved_cards': saved_cards
-    })
+        if os.path.exists(pdf_path):
+            latest_order = Order.objects.filter(user=request.user).order_by('-created_at').first()
+            saved_cards = SavedCard.objects.filter(user=request.user)
+            return render(request, "store/check_receipt.html", {
+                "found": True,
+                "receipt_code": code,
+                "order": latest_order,
+                "saved_cards": saved_cards,
+                "pdf_url": f"/download_receipt/{code}/"
+            })
 
-class DeleteCardView(LoginRequiredMixin, View):
-    def post(self, request, card_id):
-        card = get_object_or_404(SavedCard, id=card_id, user=request.user)
-        card.delete()
-        messages.success(request, "Card deleted.")
-        return redirect("account_profile")
-
-class UnsuccessfulPaymentView(LoginRequiredMixin, TemplateView):
-    template_name = "store/unsuccessful_payment.html"
+        messages.error(request, "Receipt not found.")
+        return render(request, "store/check_receipt.html", {"found": False})

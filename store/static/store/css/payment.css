@@ -1,0 +1,27 @@
+/* payment.css */
+.container {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  
+  .card {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-header {
+    background-color: #007bff;
+    color: #fff;
+    text-align: center;
+  }
+  
+  .card-footer {
+    text-align: center;
+    font-size: 0.875rem;
+    color: #6c757d;
+  }
+  
+  .form-check-label img {
+    width: 40px;
+    margin-right: 0.5rem;
+  }
+  

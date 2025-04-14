@@ -1,4 +1,3 @@
-# store/cart.py
 
 from decimal import Decimal
 from django.conf import settings
@@ -49,7 +48,7 @@ class Cart:
             cart_item = self.cart[str(item.id)]
             cart_item['item_obj'] = item
 
-            # Choose the valid price: discount if available and valid
+
             if item.discount_price and item.discount_expiry and item.discount_expiry > now:
                 price = item.discount_price
             else:

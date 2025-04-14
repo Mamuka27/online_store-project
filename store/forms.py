@@ -1,7 +1,7 @@
 
 from django import forms
 from .models import Review
-from .models import Item, Review  # ✅ Add this line if missing
+from .models import Item, Review  
 
 class ReviewForm(forms.ModelForm):
     reviewer_last_name = forms.CharField(
@@ -19,7 +19,7 @@ class ReviewForm(forms.ModelForm):
     )
     class Meta:
         model = Review
-        fields = ['reviewer_last_name', 'rating', 'comment']
+        fields = ['rating', 'comment']
 class ItemForm(forms.ModelForm):
     category = forms.CharField(label='Category', required=False, disabled=True)
 

@@ -28,9 +28,9 @@
                 <p class="text-muted">Reviews: {{ item.reviews.count }}</p>
               </div>
 
-              <!-- Quantity Controls -->
+
               <div class="d-flex align-items-center justify-content-between mt-2">
-                <!-- Decrease -->
+
                 <form method="post" action="{% url 'update_cart' item.id %}" class="d-flex align-items-center">
                   {% csrf_token %}
                   <input type="hidden" name="quantity" value="{{ cart_item.quantity|add:'-1' }}">
@@ -39,7 +39,7 @@
 
                 <span>{{ cart_item.quantity }}</span>
 
-                <!-- Increase -->
+
                 <form method="post" action="{% url 'update_cart' item.id %}" class="d-flex align-items-center">
                   {% csrf_token %}
                   <input type="hidden" name="quantity" value="{{ cart_item.quantity|add:'1' }}">
@@ -48,7 +48,7 @@
                 </form>
               </div>
 
-              <!-- Delete -->
+
               <form method="post" action="{% url 'remove_from_cart' item.id %}" class="mt-3">
                 {% csrf_token %}
                 <button class="btn btn-danger w-100">Delete</button>
@@ -60,7 +60,7 @@
       {% endfor %}
     </div>
 
-    <!-- Cart Total and Checkout -->
+
     <div class="text-end mt-4">
       <h4>Total: <strong>${{ total_price }}</strong></h4>
       <a href="{% url 'cart_payment' %}" class="btn btn-success btn-lg mt-2">Proceed to Checkout</a>
