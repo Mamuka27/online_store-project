@@ -28,8 +28,11 @@
           {% endif %}
 
           <div class="card-body">
-            <h5 class="card-title font-weight-bold">{{ wish.item.name }}</h5>
-
+            <h5 class="card-title font-weight-bold">
+              <a href="{% url 'item_detail' wish.item.id %}" class="text-decoration-none text-dark">
+                {{ wish.item.name }}
+              </a>
+            </h5>
             {% if wish.item.discount_price and wish.item.discount_expiry and wish.item.discount_expiry > now %}
               <p class="mb-1">
                 <span class="text-danger font-weight-bold" style="font-size: 1.1rem;">

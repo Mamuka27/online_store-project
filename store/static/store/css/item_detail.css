@@ -27,6 +27,15 @@
   
 
 
+  .hide-scrollbar::-webkit-scrollbar {
+    height: 0;
+  }
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  
   .thumb {
     height: 75px;
     width: 75px;

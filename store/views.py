@@ -2,7 +2,7 @@ import os
 import random
 import string
 from datetime import datetime
-
+from django.db.models import Count, Q
 from fpdf import FPDF
 
 from django.contrib import messages
@@ -22,7 +22,8 @@ from .forms import ReviewForm
 from .models import (
     Item, WishlistItem, Category, SubCategory,
     Brand, CartItem, Review, SavedCard,
-    Order, OrderItem
+    Order, OrderItem,Order, OrderItem
+
 )
 from .pdf_utils import ReceiptGenerator
 
@@ -140,6 +141,7 @@ class ItemListView(ListView):
         return context
 
 
+
 class ItemDetailView(DetailView):
     model = Item
     template_name = 'store/item_detail.html'
@@ -153,20 +155,38 @@ class ItemDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         item = self.get_object()
-        history = item.price_history.order_by('date')
+        now_time = now()
 
+
+        history = item.price_history.order_by('date')
         context['price_labels'] = [h.date.strftime('%Y-%m-%d') for h in history]
         context['price_values'] = [float(h.price) for h in history]
         context['discount_values'] = [float(h.discount_price) if h.discount_price else None for h in history]
-        context["now"] = now()
+        context['now'] = now_time
 
-        similar_items = Item.objects.filter(subcategory=item.subcategory).exclude(id=item.id).annotate(
-            wishlist_count=Count("wishlist_items")
-        ).order_by('-wishlist_count')[:3]
 
-        top_viewed = Item.objects.exclude(id=item.id).order_by('-views')[:3]
-        recommended = list(set(list(similar_items) + list(top_viewed)))[:4]
-        context["recommended_items"] = recommended
+        base_qs = Item.objects.exclude(id=item.id)
+
+        recommended_items = (
+            base_qs
+            .filter(
+                Q(subcategory=item.subcategory) |
+                Q(discount_expiry__gt=now_time) |
+                Q(stock__gt=5)
+            )
+            .annotate(
+                wishlist_count=Count("wishlist_items"),
+                review_count=Count("reviews")
+            )
+            .order_by(
+                '-wishlist_count',
+                '-review_count',
+                '-views',
+                '-discount_price'
+            )[:12] 
+        )
+
+        context["recommended_items"] = recommended_items
 
         reviews = item.reviews.all()
         context['reviews'] = reviews
@@ -178,6 +198,9 @@ class ItemDetailView(DetailView):
 
         context['review_form'] = ReviewForm()
         return context
+
+
+
 
 
 class WishlistView(LoginRequiredMixin, View):
@@ -268,6 +291,10 @@ class RemoveFromCartView(LoginRequiredMixin, View):
         return redirect('cart_detail')
 
 
+
+
+
+
 class CartPaymentView(LoginRequiredMixin, View):
     def get(self, request):
         cards = SavedCard.objects.filter(user=request.user)
@@ -281,13 +308,27 @@ class CartPaymentView(LoginRequiredMixin, View):
         if selected_card_id:
             card = SavedCard.objects.filter(id=selected_card_id, user=request.user).first()
         else:
-            card_number = request.POST.get("card_number", "").strip()
+            card_number = request.POST.get("card_number", "").strip().replace(" ", "")
             expiry_date = request.POST.get("expiry_date", "").strip()
             cvv = request.POST.get("cvv", "").strip()
             cardholder_name = request.POST.get("card_name", "").strip()
             save_card = request.POST.get("save_card") == "on"
 
-            if save_card and card_number and expiry_date and cvv and cardholder_name:
+
+            if len(card_number) != 16 or not card_number.isdigit():
+                messages.error(request, "❌ Card number must be exactly 16 digits.")
+                return redirect("unsuccessful_payment")
+
+            if len(cvv) != 3 or not cvv.isdigit():
+                messages.error(request, "❌ CVV must be exactly 3 digits.")
+                return redirect("unsuccessful_payment")
+
+
+            if not self.is_valid_expiry(expiry_date):
+                messages.error(request, "❌ This card has expired.")
+                return redirect("unsuccessful_payment")
+
+            if save_card and all([card_number, expiry_date, cvv, cardholder_name]):
                 card = SavedCard.objects.create(
                     user=request.user,
                     card_number=card_number,
@@ -306,10 +347,10 @@ class CartPaymentView(LoginRequiredMixin, View):
         try:
             month, year = map(int, expiry.split("/"))
             now_date = datetime.now()
-            return (2000 + year) > now_date.year or ((2000 + year) == now_date.year and month >= now_date.month)
+            full_year = 2000 + year if year < 100 else year
+            return full_year > now_date.year or (full_year == now_date.year and month >= now_date.month)
         except:
             return False
-
 
 class AddReviewView(LoginRequiredMixin, View):
     def post(self, request, item_id):
@@ -395,13 +436,22 @@ class CompletePaymentView(LoginRequiredMixin, TemplateView):
 
         for cart_item in cart_items:
             item = cart_item.item
-            quantity = cart_item.quantity
+            quantity = cart_item.quantity or 0
+
+
+            price = item.discount_price if item.discount_price and item.discount_expiry and item.discount_expiry > timezone.now() else item.price
+
+
+            if price is None or quantity <= 0:
+                continue 
+
             if item.stock >= quantity:
+
                 item.stock -= quantity
                 item.lifetime_sales += quantity
                 item.save()
 
-                price = item.discount_price if item.discount_expiry and item.discount_expiry > timezone.now() else item.price
+
                 total += price * quantity
 
                 OrderItem.objects.create(
@@ -410,6 +460,13 @@ class CompletePaymentView(LoginRequiredMixin, TemplateView):
                     quantity=quantity,
                     price=price
                 )
+            else:
+                messages.warning(request, f"Insufficient stock for {item.name}. Skipped.")
+
+        if total == 0:
+            order.delete()
+            messages.error(request, "No valid items were processed.")
+            return redirect("cart_detail")
 
         order.total_amount = total
         order.save()

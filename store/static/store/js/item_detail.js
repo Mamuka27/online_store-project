@@ -136,3 +136,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
+
+
+function scrollRecommendations(direction) {
+  const container = document.getElementById('recommendationScroll');
+  const scrollAmount = 280;
+  container.scrollBy({
+    left: direction * scrollAmount,
+    behavior: 'smooth'
+  });
+}

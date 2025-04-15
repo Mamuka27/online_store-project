@@ -28,7 +28,7 @@
       <div class="d-flex justify-content-center align-items-center mt-3 gap-2 flex-wrap" style="max-width: 100%; overflow-x: auto;">
         <img src="{{ item.image.url }}" class="img-thumbnail thumb active-thumb" onclick="setImage(0)" style="width: 80px; height: 80px; object-fit: contain;">
         {% for image in item.images.all %}
-          <img src="{{ image.image.url }}" class="img-thumbnail thumb" onclick="setImage({{ forloop.counter }})" style="width: 80px; height: 80px; object-fit: contain;">
+          <img src="{{ image.image.url }}" class="img-thumbnail thumb" onclick="setImage({{forloop.counter}})" style="width: 80px; height: 80px; object-fit: contain;">
         {% endfor %}
       </div>
     </div>
@@ -155,59 +155,94 @@
 
 
   <h5 class="mt-5">You Might Also Like</h5>
-<div class="d-flex overflow-auto gap-3 p-2" style="scroll-snap-type: x mandatory;">
-  {% for item in recommended_items %}
-    <div class="card shadow-sm product-card" style="min-width: 250px; scroll-snap-align: start;">
-      <div class="position-relative product-image-container">
-        {% if item.discount_price and item.discount_expiry and item.discount_expiry > now %}
-          <span class="badge bg-danger position-absolute top-0 end-0 m-2">-{{ item.discount_percent }}%</span>
-        {% endif %}
-        {% if item.is_featured %}
-          <span class="badge bg-info position-absolute top-0 start-0 m-2">Best Seller</span>
-        {% endif %}
-        <img src="{{ item.image.url }}" class="product-image" alt="{{ item.name }}">
-      </div>
-      <div class="card-body text-center d-flex flex-column justify-content-between">
-        <h6 class="card-title">{{ item.name|truncatechars:50 }}</h6>
 
-        <p class="h5 mt-2 mb-1">
-          {% if item.discount_price and item.discount_expiry and item.discount_expiry > now %}
-            <span class="text-danger fw-bold">₾{{ item.discount_price }}</span>
-            <small class="text-muted ms-2"><del>₾{{ item.price }}</del></small>
-            <div class="text-danger mt-1">
-              <i class="far fa-clock me-1"></i>
-              Ends in:
-              <span class="fw-bold discountCountdown" data-expiry="{{ item.discount_expiry|date:'Y-m-d H:i:s' }}"></span>
+<div class="position-relative px-4">
+
+  <!-- Scrollable wrapper with buttons positioned mid-card -->
+  <div class="d-flex align-items-center position-relative">
+
+    <!-- Left Scroll Button -->
+    <button class="btn btn-light shadow position-absolute"
+            style="left: -25px; top: 240px; z-index: 10;"
+            onclick="scrollRecommendations(-1)">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <!-- Right Scroll Button -->
+    <button class="btn btn-light shadow position-absolute"
+            style="right: -25px; top: 240px; z-index: 10;"
+            onclick="scrollRecommendations(1)">
+      <i class="fas fa-chevron-right"></i>
+    </button>
+
+    <!-- Scrollable Content -->
+    <div id="recommendationScroll"
+         class="d-flex gap-3 p-2 pb-4 hide-scrollbar"
+         style="scroll-snap-type: x mandatory; overflow-x: auto; scroll-behavior: smooth;">
+      {% for item in recommended_items %}
+        <div class="card shadow-sm product-card"
+             style="flex: 0 0 260px; scroll-snap-align: start; height: 100%;">
+          <div class="position-relative" style="height: 220px; overflow: hidden;">
+            {% if item.discount_price and item.discount_expiry and item.discount_expiry > now %}
+              <span class="badge bg-danger position-absolute top-0 end-0 m-2">-{{ item.discount_percent }}%</span>
+            {% endif %}
+            {% if item.is_featured %}
+              <span class="badge bg-info position-absolute top-0 start-0 m-2">Best Seller</span>
+            {% endif %}
+            <img src="{{ item.image.url }}"
+                 class="w-100 h-100"
+                 style="object-fit: contain; padding: 10px;"
+                 alt="{{ item.name }}">
+          </div>
+
+          <div class="card-body text-center d-flex flex-column justify-content-between" style="height: 240px;">
+            <h6 class="card-title mb-2">{{ item.name|truncatechars:50 }}</h6>
+
+            <p class="h5 mt-1 mb-2">
+              {% if item.discount_price and item.discount_expiry and item.discount_expiry > now %}
+                <span class="text-danger fw-bold">₾{{ item.discount_price }}</span>
+                <small class="text-muted ms-2"><del>₾{{ item.price }}</del></small>
+                <div class="text-danger small mt-1">
+                  <i class="far fa-clock me-1"></i>
+                  Ends in:
+                  <span class="fw-bold discountCountdown"
+                        data-expiry="{{ item.discount_expiry|date:'Y-m-d H:i:s' }}"></span>
+                </div>
+              {% else %}
+                <span class="text-success fw-bold">₾{{ item.price }}</span>
+              {% endif %}
+            </p>
+
+            <p class="small text-muted mb-1">{{ item.subcategory.category.name }} > {{ item.subcategory.name }}</p>
+
+            <div class="mb-2">
+              {% for i in "12345" %}
+                <i class="fas fa-star{% if forloop.counter > item.average_rating %}-o{% endif %} text-warning"></i>
+              {% endfor %}
             </div>
-          {% else %}
-            <span class="text-success fw-bold">₾{{ item.price }}</span>
-          {% endif %}
-        </p>
 
-        <p class="small text-muted mb-1">{{ item.subcategory.category.name }} > {{ item.subcategory.name }}</p>
+            {% if item.stock > 0 %}
+              <span class="badge bg-success mb-2">In Stock</span>
+            {% else %}
+              <span class="badge bg-danger mb-2">Out of Stock</span>
+            {% endif %}
+          </div>
 
-        <div class="mb-1">
-          {% for i in "12345" %}
-            <i class="fas fa-star{% if forloop.counter > item.average_rating %}-o{% endif %} text-warning"></i>
-          {% endfor %}
+          <div class="card-footer d-flex justify-content-between align-items-center">
+            <a href="{% url 'item_detail' item.id %}" class="btn btn-outline-primary btn-sm">View</a>
+            <form method="post" action="{% url 'add_to_cart' item.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success btn-sm">Add</button>
+            </form>
+          </div>
         </div>
-
-        {% if item.stock > 0 %}
-          <span class="badge bg-success mb-2">In Stock</span>
-        {% else %}
-          <span class="badge bg-danger mb-2">Out of Stock</span>
-        {% endif %}
-      </div>
-      <div class="card-footer d-flex justify-content-between align-items-center">
-        <a href="{% url 'item_detail' item.id %}" class="btn btn-outline-primary btn-sm">View</a>
-        <form method="post" action="{% url 'add_to_cart' item.id %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-success btn-sm">Add</button>
-        </form>
-      </div>
+      {% endfor %}
     </div>
-  {% endfor %}
+  </div>
 </div>
+
+
+
 
 
 

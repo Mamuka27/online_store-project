@@ -104,7 +104,12 @@
           {% endif %}
 
           <div class="d-flex justify-content-center align-items-center" style="height:250px;">
-            <img src="{{ item.image.url }}" class="card-img-top" style="max-height: 100%; max-width: 100%; object-fit: contain;" alt="{{ item.name }}">
+            {% if item.image %}
+  <img src="{{ item.image.url }}" class="card-img-top" style="max-height: 100%; max-width: 100%; object-fit: contain;" alt="{{ item.name }}">
+{% else %}
+  <img src="{% static 'store/img/no-image.png' %}" class="card-img-top" style="max-height: 100%; max-width: 100%; object-fit: contain;" alt="No image">
+{% endif %}
+
           </div>
 
           <div class="card-body text-center">
