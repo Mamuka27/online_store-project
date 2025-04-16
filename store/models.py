@@ -103,7 +103,7 @@ class Item(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # Specs
+
     model_name = models.CharField(max_length=100, blank=True, null=True)
     release_year = models.PositiveIntegerField(blank=True, null=True)
     screen_size = models.DecimalField(max_digits=5, decimal_places=1, blank=True, null=True, help_text="In inches")
@@ -141,11 +141,11 @@ class Item(models.Model):
         self.save(update_fields=['average_rating'])
 
     def save(self, *args, **kwargs):
-        from .models import PriceHistory  # ✅ avoid circular import if needed
+        from .models import PriceHistory 
         if not self.slug:
             self.slug = generate_slug(self, self.name, "item")
 
-        # Save price change history
+
         if self.pk:
             old = Item.objects.get(pk=self.pk)
             price_changed = old.price != self.price
