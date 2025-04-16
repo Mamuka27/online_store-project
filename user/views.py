@@ -10,6 +10,14 @@ from .forms import EditProfileForm
 from django.contrib.auth.forms import UserChangeForm
 from django.views.generic import UpdateView
 from django.contrib.auth.models import User
+from django.shortcuts import render, redirect
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
+
+
+
+from django.shortcuts import render, redirect
+from .forms import CustomUserCreationForm
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import CustomUserCreationForm
@@ -26,14 +34,6 @@ def custom_logout(request):
     return redirect('login')
 
 
-from django.shortcuts import render, redirect
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
-
-
-
-from django.shortcuts import render, redirect
-from .forms import CustomUserCreationForm
 
 
 def register_view(request):

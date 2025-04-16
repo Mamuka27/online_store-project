@@ -9,18 +9,23 @@ from store.views import (
 )
 from store.views import DownloadReceiptView
 from .views import AccountProfileView
-urlpatterns = [
+from .views import AdminDashboardView, AdminHeatmapView, ExportHeatmapCSVView
+from .views import ExportHeatmapCSVView
 
+urlpatterns = [
+    path('dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
+    path('dashboard/heatmap/', AdminHeatmapView.as_view(), name='admin_heatmap'),
+    path('dashboard/heatmap/export/', ExportHeatmapCSVView.as_view(), name='export_heatmap_csv'),
     path('', ItemListView.as_view(), name='item_list'),
     path('home/', HomeView.as_view(), name='home'),
     path('account/', AccountProfileView.as_view(), name='account_profile'),
 
     path("account/delete_card/<int:card_id>/", DeleteCardView.as_view(), name="delete_card"),
 
+    path('dashboard/heatmap/export/', ExportHeatmapCSVView.as_view(), name='export_heatmap_csv'),
 
     path('item/<int:pk>/', ItemDetailView.as_view(), name='item_detail'),
     path('item/<int:item_id>/review/', AddReviewView.as_view(), name='add_review'),
-
 
     path('cart/', CartDetailView.as_view(), name='cart_detail'),
     path('cart/add/<int:item_id>/', AddToCartView.as_view(), name='add_to_cart'),

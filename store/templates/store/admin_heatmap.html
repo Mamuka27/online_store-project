@@ -1,0 +1,122 @@
+{% extends 'store/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+  #heatmapChart {
+    min-height: 400px;
+    max-height: 600px;
+  }
+
+  .pagination .page-link {
+    border-radius: 5px;
+    margin: 0 2px;
+  }
+
+  .pagination .active .page-link {
+    background-color: #3f51b5;
+    border-color: #3f51b5;
+    color: white;
+  }
+</style>
+
+<div class="container mt-5">
+  <h2 class="mb-4">📊 Item Popularity Heatmap</h2>
+
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label class="form-label">Category</label>
+      <select name="category" class="form-select">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Time Range</label>
+      <select name="range" class="form-select" id="rangeSelect">
+        <option value="all" {% if time_range == 'all' %}selected{% endif %}>All Time</option>
+        <option value="7" {% if time_range == '7' %}selected{% endif %}>Last 7 Days</option>
+        <option value="30" {% if time_range == '30' %}selected{% endif %}>This Month</option>
+        <option value="custom" {% if time_range == 'custom' %}selected{% endif %}>Custom Range</option>
+      </select>
+    </div>
+
+    <div class="col-md-3" id="customDates" style="display: none;">
+      <label class="form-label">Start Date</label>
+      <input type="date" name="start" class="form-control" value="{{ start_date }}">
+    </div>
+
+    <div class="col-md-3" id="customDatesEnd" style="display: none;">
+      <label class="form-label">End Date</label>
+      <input type="date" name="end" class="form-control" value="{{ end_date }}">
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Search</label>
+      <input type="text" name="search" class="form-control" placeholder="Search item..." value="{{ search_query }}">
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100">Apply Filters</button>
+    </div>
+  </form>
+
+  <div class="mb-3">
+    <a href="{% url 'export_heatmap_csv' %}" class="btn btn-outline-secondary me-2">📥 Export CSV</a>
+    <button class="btn btn-outline-dark" onclick="window.print()">🖨️ Print</button>
+  </div>
+
+  <div class="mb-4">
+    <canvas id="heatmapChart"></canvas>
+  </div>
+
+  <div class="d-flex justify-content-center">
+    <nav>
+      <ul class="pagination">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&range={{ time_range }}&category={{ selected_category }}&search={{ search_query }}">Previous</a>
+          </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+          <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}&range={{ time_range }}&category={{ selected_category }}&search={{ search_query }}">{{ num }}</a>
+          </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&range={{ time_range }}&category={{ selected_category }}&search={{ search_query }}">Next</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'store/js/heatmap.js' %}"></script>
+
+{{ chart_labels|json_script:"chart-labels" }}
+{{ views_data|json_script:"views-data" }}
+{{ wishlist_data|json_script:"wishlist-data" }}
+{{ order_data|json_script:"order-data" }}
+{{ thumbnails|json_script:"thumbs-data" }}
+
+<script>
+  const rangeSelect = document.getElementById("rangeSelect");
+  const customDates = document.getElementById("customDates");
+  const customDatesEnd = document.getElementById("customDatesEnd");
+
+  function toggleDateInputs() {
+    const isCustom = rangeSelect.value === "custom";
+    customDates.style.display = isCustom ? "block" : "none";
+    customDatesEnd.style.display = isCustom ? "block" : "none";
+  }
+
+  rangeSelect.addEventListener("change", toggleDateInputs);
+  document.addEventListener("DOMContentLoaded", toggleDateInputs);
+</script>
+{% endblock %}

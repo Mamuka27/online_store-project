@@ -28,8 +28,11 @@
       <div class="d-flex justify-content-center align-items-center mt-3 gap-2 flex-wrap" style="max-width: 100%; overflow-x: auto;">
         <img src="{{ item.image.url }}" class="img-thumbnail thumb active-thumb" onclick="setImage(0)" style="width: 80px; height: 80px; object-fit: contain;">
         {% for image in item.images.all %}
-          <img src="{{ image.image.url }}" class="img-thumbnail thumb" onclick="setImage({{forloop.counter}})" style="width: 80px; height: 80px; object-fit: contain;">
-        {% endfor %}
+  <img src="{{ image.image.url }}"
+       class="img-thumbnail thumb"
+       data-index="{{ forloop.counter }}"
+       style="width: 80px; height: 80px; object-fit: contain;">
+{% endfor %}
       </div>
     </div>
     
@@ -78,19 +81,70 @@
 
       <hr>
       <h5 class="fw-bold">Specifications</h5>
-      <ul class="list-unstyled small">
-        {% if item.ram %}<li><strong>RAM:</strong> {{ item.ram }} GB</li>{% endif %}
-        {% if item.storage %}<li><strong>Storage:</strong> {{ item.storage }} GB</li>{% endif %}
-        {% if item.screen_size %}<li><strong>Screen Size:</strong> {{ item.screen_size }}"</li>{% endif %}
-        {% if item.resolution %}<li><strong>Resolution:</strong> {{ item.resolution }}</li>{% endif %}
-        {% if item.processor %}<li><strong>Processor:</strong> {{ item.processor }}</li>{% endif %}
-        {% if item.battery_capacity %}<li><strong>Battery:</strong> {{ item.battery_capacity }} mAh</li>{% endif %}
-        {% if item.operating_system %}<li><strong>OS:</strong> {{ item.operating_system }}</li>{% endif %}
-        {% if item.sd_card_slot %}<li><strong>SD Card Slot:</strong> Yes</li>{% endif %}
-        {% if item.touchscreen %}<li><strong>Touchscreen:</strong> Yes</li>{% endif %}
-        {% if item.bluetooth %}<li><strong>Bluetooth:</strong> Yes</li>{% endif %}
-        {% if item.wifi %}<li><strong>Wi-Fi:</strong> Yes</li>{% endif %}
-      </ul>
+<ul class="list-unstyled small">
+
+  {% if "phone" in item.subcategory.name|lower and item.phonespecs %}
+    {% with specs=item.phonespecs %}
+      {% if specs.ram %}<li><strong>RAM:</strong> {{ specs.ram }} GB</li>{% endif %}
+      {% if specs.storage %}<li><strong>Storage:</strong> {{ specs.storage }} GB</li>{% endif %}
+      {% if specs.screen_size %}<li><strong>Screen Size:</strong> {{ specs.screen_size }}"</li>{% endif %}
+      {% if specs.resolution %}<li><strong>Resolution:</strong> {{ specs.resolution }}</li>{% endif %}
+      {% if specs.battery_capacity %}<li><strong>Battery:</strong> {{ specs.battery_capacity }} mAh</li>{% endif %}
+      {% if specs.operating_system %}<li><strong>OS:</strong> {{ specs.operating_system }}</li>{% endif %}
+      {% if specs.fast_charging %}<li><strong>Fast Charging:</strong> Yes</li>{% endif %}
+      {% if specs.sim_support %}<li><strong>SIM Support:</strong> Yes</li>{% endif %}
+      {% if specs.touchscreen %}<li><strong>Touchscreen:</strong> Yes</li>{% endif %}
+      {% if specs.bluetooth %}<li><strong>Bluetooth:</strong> Yes</li>{% endif %}
+      {% if specs.wifi %}<li><strong>Wi-Fi:</strong> Yes</li>{% endif %}
+    {% endwith %}
+
+  {% elif "laptop" in item.subcategory.name|lower and item.laptopspecs %}
+    {% with specs=item.laptopspecs %}
+      {% if specs.processor %}<li><strong>Processor:</strong> {{ specs.processor }}</li>{% endif %}
+      {% if specs.ram %}<li><strong>RAM:</strong> {{ specs.ram }} GB</li>{% endif %}
+      {% if specs.storage %}<li><strong>Storage:</strong> {{ specs.storage }} GB</li>{% endif %}
+      {% if specs.screen_size %}<li><strong>Screen Size:</strong> {{ specs.screen_size }}"</li>{% endif %}
+      {% if specs.resolution %}<li><strong>Resolution:</strong> {{ specs.resolution }}</li>{% endif %}
+      {% if specs.operating_system %}<li><strong>OS:</strong> {{ specs.operating_system }}</li>{% endif %}
+      {% if specs.hdmi_support %}<li><strong>HDMI Support:</strong> Yes</li>{% endif %}
+      {% if specs.bluetooth %}<li><strong>Bluetooth:</strong> Yes</li>{% endif %}
+      {% if specs.wifi %}<li><strong>Wi-Fi:</strong> Yes</li>{% endif %}
+    {% endwith %}
+
+  {% elif "tv" in item.subcategory.name|lower and item.tvspecs %}
+    {% with specs=item.tvspecs %}
+      {% if specs.screen_size %}<li><strong>Screen Size:</strong> {{ specs.screen_size }}"</li>{% endif %}
+      {% if specs.resolution %}<li><strong>Resolution:</strong> {{ specs.resolution }}</li>{% endif %}
+      {% if specs.smart_tv %}<li><strong>Smart TV:</strong> Yes</li>{% endif %}
+      {% if specs.hdr_support %}<li><strong>HDR Support:</strong> Yes</li>{% endif %}
+      {% if specs.bluetooth %}<li><strong>Bluetooth:</strong> Yes</li>{% endif %}
+      {% if specs.wifi %}<li><strong>Wi-Fi:</strong> Yes</li>{% endif %}
+      {% if specs.hdmi_ports %}<li><strong>HDMI Ports:</strong> {{ specs.hdmi_ports }}</li>{% endif %}
+      {% if specs.usb_ports %}<li><strong>USB Ports:</strong> {{ specs.usb_ports }}</li>{% endif %}
+      {% if specs.refresh_rate %}<li><strong>Refresh Rate:</strong> {{ specs.refresh_rate }} Hz</li>{% endif %}
+    {% endwith %}
+
+  {% elif "tablet" in item.subcategory.name|lower and item.tabletspecs %}
+    {% with specs=item.tabletspecs %}
+      {% if specs.ram %}<li><strong>RAM:</strong> {{ specs.ram }} GB</li>{% endif %}
+      {% if specs.storage %}<li><strong>Storage:</strong> {{ specs.storage }} GB</li>{% endif %}
+      {% if specs.screen_size %}<li><strong>Screen Size:</strong> {{ specs.screen_size }}"</li>{% endif %}
+      {% if specs.resolution %}<li><strong>Resolution:</strong> {{ specs.resolution }}</li>{% endif %}
+      {% if specs.operating_system %}<li><strong>OS:</strong> {{ specs.operating_system }}</li>{% endif %}
+      {% if specs.battery_capacity %}<li><strong>Battery:</strong> {{ specs.battery_capacity }} mAh</li>{% endif %}
+      {% if specs.sim_support %}<li><strong>SIM Support:</strong> Yes</li>{% endif %}
+      {% if specs.touchscreen %}<li><strong>Touchscreen:</strong> Yes</li>{% endif %}
+      {% if specs.bluetooth %}<li><strong>Bluetooth:</strong> Yes</li>{% endif %}
+      {% if specs.wifi %}<li><strong>Wi-Fi:</strong> Yes</li>{% endif %}
+    {% endwith %}
+
+  {% else %}
+    <li>No detailed specifications available for this item.</li>
+  {% endif %}
+
+</ul>
+
+
 
       <div class="mt-4 d-flex gap-2 align-items-center">
         {% if user.is_authenticated %}

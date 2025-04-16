@@ -4,7 +4,8 @@ import string
 from datetime import datetime
 from django.db.models import Count, Q
 from fpdf import FPDF
-
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Sum, Count
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
@@ -17,7 +18,7 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, TemplateView
-
+from datetime import timedelta
 from .forms import ReviewForm
 from .models import (
     Item, WishlistItem, Category, SubCategory,
@@ -26,8 +27,11 @@ from .models import (
 
 )
 from .pdf_utils import ReceiptGenerator
-
-
+import csv
+from django.http import HttpResponse
+from django.contrib.auth.decorators import user_passes_test
+from django.utils.decorators import method_decorator
+from django.core.paginator import Paginator
 def get_card_type(card_number):
     if card_number.startswith("4"):
         return "visa"
@@ -154,7 +158,7 @@ class ItemDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        item = self.get_object()
+        item = self.object 
         now_time = now()
 
 
@@ -503,3 +507,124 @@ class CheckReceiptView(LoginRequiredMixin, View):
 
         messages.error(request, "Receipt not found.")
         return render(request, "store/check_receipt.html", {"found": False})
+
+
+
+
+
+
+
+
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class AdminDashboardView(View):
+    def get(self, request):
+        total_sales = OrderItem.objects.aggregate(
+            total=Sum('price')
+        )['total'] or 0
+
+        item_sales = (
+            OrderItem.objects
+            .values('item__name')
+            .annotate(total_quantity=Sum('quantity'))
+            .order_by('-total_quantity')[:10]
+        )
+
+        labels = [entry['item__name'] for entry in item_sales]
+        values = [entry['total_quantity'] for entry in item_sales]
+
+        context = {
+            "total_sales": total_sales,
+            "chart_labels": labels,
+            "chart_values": values,
+        }
+
+        return render(request, "store/admin_dashboard.html", context)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class AdminHeatmapView(View):
+    def get(self, request):
+        time_range = request.GET.get("range", "all")
+        category_id = request.GET.get("category")
+        search_query = request.GET.get("search", "")
+        page_number = request.GET.get("page", 1)
+
+        items = Item.objects.all()
+
+        if category_id and category_id.isdigit():
+            items = items.filter(subcategory__category_id=int(category_id))
+
+
+        if time_range == "custom":
+            start = request.GET.get("start")
+            end = request.GET.get("end")
+            if start and end:
+                items = items.filter(orderitem__order__created_at__range=[start, end])
+        elif time_range in ["7", "30"]:
+            items = items.filter(orderitem__order__created_at__gte=now() - timezone.timedelta(days=int(time_range)))
+
+
+        if search_query:
+            items = items.filter(name__icontains=search_query)
+
+        items = items.distinct()
+
+        paginator = Paginator(items, 20)
+        page_obj = paginator.get_page(page_number)
+
+
+        chart_labels = [item.name for item in page_obj]
+        views_data = [item.views for item in page_obj]
+        wishlist_data = [item.wishlist_items.count() for item in page_obj]
+        order_data = [
+            OrderItem.objects.filter(item=item).aggregate(total=Sum("quantity"))["total"] or 0
+            for item in page_obj
+        ]
+
+
+        thumbnails = []
+        for item in page_obj:
+            image = item.images.first()
+            if image:
+                thumbnails.append(image.image.url)
+            else:
+                thumbnails.append("/static/store/img/placeholder.png") 
+
+
+        categories = Category.objects.all()
+
+        return render(request, "store/admin_heatmap.html", {
+            "chart_labels": chart_labels,
+            "views_data": views_data,
+            "wishlist_data": wishlist_data,
+            "order_data": order_data,
+            "thumbnails": thumbnails,
+            "categories": categories,
+            "selected_category": category_id,
+            "time_range": time_range,
+            "search_query": search_query,
+            "page_obj": page_obj,
+        })
+
+@method_decorator(staff_member_required, name='dispatch')
+class ExportHeatmapCSVView(View):
+    def get(self, request):
+        items = Item.objects.all()
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="heatmap_data.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Item', 'Views', 'Wishlists', 'Purchases'])
+
+        for item in items:
+            writer.writerow([
+                item.name,
+                item.views,
+                item.wishlist_items.count(),
+                OrderItem.objects.filter(item=item).aggregate(total=Sum('quantity'))['total'] or 0
+            ])
+
+        return response

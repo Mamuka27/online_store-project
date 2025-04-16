@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 import random, string
+
 def generate_slug(instance, value, prefix):
 
     generated = slugify(value)
@@ -102,23 +103,9 @@ class Item(models.Model):
     lifetime_sales = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-
-    model_name = models.CharField(max_length=100, blank=True, null=True)
-    release_year = models.PositiveIntegerField(blank=True, null=True)
-    screen_size = models.DecimalField(max_digits=5, decimal_places=1, blank=True, null=True, help_text="In inches")
-    resolution = models.CharField(max_length=50, blank=True, null=True)
-    ram = models.PositiveIntegerField(blank=True, null=True, help_text="In GB")
-    storage = models.PositiveIntegerField(blank=True, null=True, help_text="In GB")
-    operating_system = models.CharField(max_length=100, blank=True, null=True)
-    battery_capacity = models.PositiveIntegerField(blank=True, null=True, help_text="In mAh")
-    fast_charging = models.BooleanField(default=False)
-    hdmi_support = models.BooleanField(default=False)
-    bluetooth = models.BooleanField(default=False)
-    wifi = models.BooleanField(default=False)
-    sim_support = models.BooleanField(default=False)
-    touchscreen = models.BooleanField(default=False)
     views = models.PositiveIntegerField(default=0)
+
+
 
     class Meta:
         ordering = ['-created_at']
@@ -268,3 +255,19 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
+
+
+
+
+
+
+
+
+
+
+
+
+from .tech_models.phone_models import PhoneSpecs
+from store.tech_models.laptop_models import LaptopSpecs
+from .tech_models.tv_models import TVSpecs
+from store.tech_models.tablet_models import TabletSpecs

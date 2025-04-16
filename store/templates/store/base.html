@@ -19,41 +19,55 @@
 </head>
 
 <body class="bg-gray-100" id="mainBody">
-<header class="bg-white border-bottom shadow-sm">
-  <div class="w-100" style="height: 6px; background-color: #149ddd;"></div>
-  <nav class="navbar navbar-expand-lg navbar-light container d-flex justify-content-between align-items-center py-2">
-    <a class="navbar-brand text-primary font-weight-bold" href="{% url 'item_list' %}">Online Store</a>
-
-    <div class="d-flex align-items-center">
-      <ul class="navbar-nav flex-row align-items-center">
-        <li class="nav-item mx-2"><a class="nav-link p-0" href="{% url 'cart_detail' %}"><i class="fas fa-shopping-cart"></i> Cart</a></li>
-        <li class="nav-item mx-2"><a class="nav-link p-0" href="{% url 'wishlist' %}"><i class="fas fa-heart text-danger"></i> Wishlist</a></li>
-
-        {% if user.is_authenticated %}
+  <header class="bg-white border-bottom shadow-sm">
+    <div class="w-100" style="height: 6px; background-color: #149ddd;"></div>
+  
+    <nav class="navbar navbar-expand-lg navbar-light container d-flex justify-content-between align-items-center py-2">
+      <a class="navbar-brand text-primary fw-bold" href="{% url 'item_list' %}">Online Store</a>
+  
+      <div class="d-flex align-items-center">
+        <ul class="navbar-nav flex-row align-items-center">
           <li class="nav-item mx-2">
-            <span class="nav-link p-0">
-              Welcome, <a href="{% url 'account_profile' %}" class="fw-bold text-decoration-none">{{ user.username }}</a>
-            </span>
+            <a class="nav-link p-0" href="{% url 'cart_detail' %}">
+              <i class="fas fa-shopping-cart"></i> Cart
+            </a>
           </li>
           <li class="nav-item mx-2">
-            <form action="{% url 'logout' %}" method="post" class="d-inline">{% csrf_token %}
-              <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
-            </form>
+            <a class="nav-link p-0" href="{% url 'wishlist' %}">
+              <i class="fas fa-heart text-danger"></i> Wishlist
+            </a>
           </li>
-        {% else %}
-          <li class="nav-item mx-2"><a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">Login</a></li>
-          <li class="nav-item mx-2"><a href="{% url 'register' %}" class="btn btn-outline-success btn-sm">Register</a></li>
-        {% endif %}
-      </ul>
-
-      <div class="form-check form-switch text-light">
-        <input class="form-check-input" type="checkbox" id="dark-mode-toggle">
-        <label class="form-check-label" for="dark-mode-toggle">Dark Mode</label>
+          
+          {% if user.is_authenticated %}
+            <li class="nav-item mx-2">
+              <span class="nav-link p-0">
+                Welcome, <a href="{% url 'account_profile' %}" class="fw-bold text-decoration-none">{{ user.username }}</a>
+              </span>
+            </li>
+            <li class="nav-item mx-2">
+              <form action="{% url 'logout' %}" method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+              </form>
+            </li>
+          {% else %}
+            <li class="nav-item mx-2">
+              <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">Login</a>
+            </li>
+            <li class="nav-item mx-2">
+              <a href="{% url 'register' %}" class="btn btn-outline-success btn-sm">Register</a>
+            </li>
+          {% endif %}
+        </ul>
+  
+        <div class="form-check form-switch text-light ms-3">
+          <input class="form-check-input" type="checkbox" id="dark-mode-toggle">
+          <label class="form-check-label" for="dark-mode-toggle">Dark Mode</label>
+        </div>
       </div>
-      
-    </div>
-  </nav>
-</header>
+    </nav>
+  </header>
+  
 
 <main class="container my-5">
   {% if messages %}
@@ -73,6 +87,26 @@
     <p class="mb-0">&copy; 2025 Online Store. All rights reserved.</p>
   </div>
 </footer>
+
+
+{% if request.user.is_staff %}
+  <a href="{% url 'admin_dashboard' %}" 
+     class="position-fixed bottom-0 end-0 m-4 d-flex align-items-center text-decoration-none bg-white border shadow px-3 py-2 rounded"
+     style="z-index: 9999;">
+    <img src="{% static 'store/images/admin_icon.png' %}" alt="Admin" width="24" height="24" class="me-2">
+    <span class="text-dark fw-semibold">Admin Dashboard</span>
+  </a>
+
+  <a href="{% url 'admin_heatmap' %}" 
+   class="position-fixed bottom-0 end-0 me-4 mb-20 d-flex align-items-center text-decoration-none bg-white border shadow px-3 py-2 rounded"
+   style="z-index: 9998; bottom: 80px;">
+  <i class="fas fa-fire text-danger me-2"></i>
+  <span class="text-dark fw-semibold">Heatmap</span>
+</a>
+{% endif %}
+
+
+
 
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
